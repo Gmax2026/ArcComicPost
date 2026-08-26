@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Arc Comic — Post Generator</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --purple:#6f42c1;
+  --purple-dark:#5a32a3;
+  --sky:skyblue;
+  --bg:#f0f2f5;
+  --panel:#fff;
+  --border:#e0e0e0;
+  --text:#222;
+  --muted:#888;
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-serif;font-size:14px;min-height:100vh}
+
+.app-header{background:#1a1a1a;color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,0.3);gap:10px}
+.hamburger-btn{background:transparent;border:none;color:#fff;font-size:1.4em;cursor:pointer;padding:4px 8px;line-height:1}
+.header-titles{flex:1;min-width:0}
+.app-title{font-weight:900;font-size:1.1em;letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.app-title span{color:var(--sky)}
+.app-sub{font-size:0.68em;color:#999;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+#sidebarOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:299}
+#sidebarOverlay.open{display:block}
+#sidebar{position:fixed;top:0;left:0;bottom:0;width:280px;max-width:85vw;background:#fff;z-index:300;transform:translateX(-100%);transition:transform .22s ease;display:flex;flex-direction:column;box-shadow:2px 0 20px rgba(0,0,0,0.2)}
+#sidebar.open{transform:translateX(0)}
+.sidebar-header{background:#1a1a1a;color:#fff;padding:16px;display:flex;align-items:center;justify-content:space-between}
+.sidebar-header h3{font-size:0.95em;font-weight:900}
+.sidebar-close{background:transparent;border:none;color:#fff;font-size:1.3em;cursor:pointer}
+.sidebar-newbtn{margin:12px;padding:11px;background:var(--purple);color:#fff;border:none;border-radius:8px;font-weight:bold;font-size:0.85em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.sidebar-newbtn:hover{background:var(--purple-dark)}
+.draft-list{flex:1;overflow-y:auto;padding:0 10px}
+.draft-item{padding:11px 12px;border-radius:8px;margin-bottom:6px;cursor:pointer;position:relative;border:1.5px solid transparent}
+.draft-item:hover{background:#f5f5f7}
+.draft-item.active{background:#f0eaff;border-color:var(--purple)}
+.draft-item-title{font-size:0.85em;font-weight:bold;color:#222;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:26px}
+.draft-item-meta{font-size:0.68em;color:#999;margin-top:2px}
+.draft-item-del{position:absolute;top:8px;right:8px;background:transparent;border:none;color:#bbb;font-size:1em;cursor:pointer;padding:2px 6px;border-radius:4px}
+.draft-item-del:hover{color:#e55;background:#fff0f0}
+.sidebar-footer{padding:10px 12px;border-top:1px solid var(--border);font-size:0.65em;color:#aaa;text-align:center}
+.layout{display:grid;grid-template-columns:1fr;gap:0;max-width:1400px;margin:0 auto}
+@media(min-width:1000px){.layout{grid-template-columns:440px 1fr}}
+
+.builder{padding:16px;border-right:1px solid var(--border);background:#fafafa;max-height:none}
+@media(min-width:1000px){.builder{max-height:calc(100vh - 58px);overflow-y:auto}}
+.section{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px}
+.section-title{font-size:0.75em;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--purple);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+label{display:block;font-size:0.72em;font-weight:bold;color:#555;margin-bottom:4px;margin-top:8px}
+label:first-child{margin-top:0}
+input[type=text],input[type=url],textarea,select{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:0.85em;font-family:inherit;background:#fff;color:var(--text)}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--purple)}
+textarea{resize:vertical;min-height:60px}
+.hint{font-size:0.68em;color:var(--muted);margin-top:3px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn{cursor:pointer;border:none;border-radius:6px;font-weight:bold;font-size:0.8em;padding:8px 14px;transition:opacity .15s,transform .1s}
+.btn:active{transform:scale(0.97)}
+.btn-purple{background:var(--purple);color:#fff}
+.btn-purple:hover{background:var(--purple-dark)}
+.btn-outline{background:#fff;border:1.5px solid var(--purple);color:var(--purple)}
+.btn-outline:hover{background:#f5eeff}
+.btn-danger{background:#fff;border:1.5px solid #e55;color:#e55;padding:5px 10px;font-size:0.72em}
+.btn-danger:hover{background:#fff0f0}
+.btn-ghost{background:transparent;border:1px solid #ccc;color:#666;padding:4px 9px;font-size:0.78em;border-radius:5px}
+.btn-ghost:hover{background:#f0f0f0}
+.btn-ghost:disabled{opacity:0.3;cursor:default}
+.btn-block{width:100%;padding:11px;font-size:0.85em}
+
+.block-item{border:1.5px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;background:#fcfcfc}
+.block-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.block-tag{font-size:0.65em;font-weight:900;letter-spacing:1px;text-transform:uppercase;padding:2px 8px;border-radius:50px}
+.tag-image{background:#e8d5ff;color:#5a32a3}
+.tag-ad{background:#fff3cd;color:#946c00}
+.tag-btn{background:#d4f5dd;color:#1a7a3a}
+.tag-text{background:#dceeff;color:#0a5ba8}
+.order-controls{display:flex;gap:4px}
+
+.fmt-toolbar{display:flex;gap:4px;margin-bottom:6px}
+.fmt-btn{width:30px;height:30px;border:1.5px solid var(--border);background:#fff;border-radius:5px;cursor:pointer;font-size:0.85em;display:flex;align-items:center;justify-content:center}
+.fmt-btn:hover{background:#f5eeff;border-color:var(--purple)}
+.fmt-btn.b{font-weight:900}
+.fmt-btn.i{font-style:italic}
+.fmt-btn.u{text-decoration:underline}
+
+.empty-note{font-size:0.75em;color:var(--muted);text-align:center;padding:10px 0}
+.social-row{display:flex;gap:8px;align-items:center}
+.social-row select{flex:0 0 90px}
+.link-row{display:flex;gap:8px;align-items:center;margin-top:6px}
+.link-row input{flex:1}
+.field-note{font-size:0.65em;color:#aaa;margin-top:2px;line-height:1.4}
+code.inline{background:#f0eaff;color:#5a32a3;padding:1px 5px;border-radius:4px;font-size:0.85em}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 20px;border-radius:50px;font-size:0.8em;font-weight:bold;z-index:999;opacity:0;pointer-events:none;transition:opacity .25s, transform .25s}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(-6px)}
+
+.folder-banner{background:#e8d5ff;color:#5a32a3;padding:10px 12px;border-radius:8px;margin-bottom:12px;font-size:0.8em;font-weight:bold;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.folder-banner button{background:#5a32a3;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:0.85em;cursor:pointer}
+</style>
+</head>
+<body>
+
+<div id="sidebarOverlay" onclick="closeSidebar()"></div>
+<div id="sidebar">
+  <div class="sidebar-header">
+    <h3>📁 My Files</h3>
+    <button class="sidebar-close" onclick="closeSidebar()">&times;</button>
+  </div>
+  <button class="sidebar-newbtn" onclick="createNewPost()"><span style="font-weight:900">+</span> New Post</button>
+  <div class="draft-list" id="draftList"></div>
+  <div class="sidebar-footer">Files saved in your chosen folder</div>
+</div>
+
+<div class="app-header">
+  <button class="hamburger-btn" onclick="openSidebar()">☰</button>
+  <div class="header-titles">
+    <div class="app-title">Arc Comic <span>Post Generator</span></div>
+    <div class="app-sub" id="savePathLabel">Choose a folder to save files</div>
+  </div>
+  <button class="btn btn-purple" onclick="generateAndDownload()">⬇ Generate HTML</button>
+</div>
+
+<div class="layout">
+  <div class="builder">
+
+    <div class="folder-banner" id="folderBanner" style="display:none">
+      <span id="folderPath">📁 No folder selected</span>
+      <button onclick="selectFolder()">Change</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">📄 Page Info</div>
+      <label>Save-as Filename</label>
+      <input type="text" id="fileName" value="TelegramComic.html" oninput="render()"/>
+      <div class="hint">This is exactly what downloads — edit it anytime, including for updates to an existing post.</div>
+      <label>Post Title (shows in browser tab &amp; header)</label>
+      <input type="text" id="pageTitle" value="Arc Comic Review – New Release" oninput="render()"/>
+      <label>Meta Description (SEO)</label>
+      <textarea id="metaDesc" oninput="render()">Fresh hentai comic update from Arc Comic on Telegram.</textarea>
+      <label>Article Tag / Eyebrow (small pill above title)</label>
+      <input type="text" id="articleTag" value="📖 NEW RELEASE" oninput="render()"/>
+      <label>Article Title (big heading)</label>
+      <input type="text" id="articleTitle" value="Title Here" oninput="render()"/>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🗂 GitHub Image Folder</div>
+      <div class="row2">
+        <div>
+          <label>Repo (user/name)</label>
+          <input type="text" id="ghRepo" value="JizzyBx/linkgateway" oninput="saveGhSettings();render()"/>
+        </div>
+        <div>
+          <label>Branch</label>
+          <input type="text" id="ghBranch" value="main" oninput="saveGhSettings();render()"/>
+        </div>
+      </div>
+      <label>Folder name</label>
+      <input type="text" id="ghFolder" value="post-image" oninput="saveGhSettings();render()"/>
+      <div class="hint">Any Image field with a "GitHub filename" box below will auto-build the direct link from these settings.</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🖼 Top Image</div>
+      <label>GitHub filename (e.g. post1.jpg)</label>
+      <input type="text" id="topImageFile" placeholder="post1.jpg" oninput="syncTopImage()"/>
+      <div class="hint">or paste a full URL directly below (catbox.moe etc.)</div>
+      <label>Top Image URL</label>
+      <input type="text" id="topImage" placeholder="https://..." oninput="render()"/>
+      <div class="hint">This shows once, right below the header — the main cover image.</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🧱 Post Blocks</div>
+      <div id="blockList"></div>
+      <div class="empty-note" id="emptyBlocks">No blocks yet — add text, images, ad slots, or buttons below.</div>
+      <div class="row2" style="margin-top:10px">
+        <button class="btn btn-outline" onclick="addBlock('text')"><span style="font-weight:900">+</span> Text</button>
+        <button class="btn btn-outline" onclick="addBlock('image')"><span style="font-weight:900">+</span> Image</button>
+        <button class="btn btn-outline" onclick="addBlock('ad')"><span style="font-weight:900">+</span> Ad Slot</button>
+        <button class="btn btn-outline" onclick="addBlock('button')"><span style="font-weight:900">+</span> Button</button>
+      </div>
+      <div class="field-note" style="margin-top:8px">Tip: inside any Text block, wrap a phrase like <code class="inline">[[Click here|https://example.com]]</code> to make it a clickable link inline.</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">📢 Ad Codes <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#999;font-size:1.1em">(pre-filled — edit only if needed)</span></div>
+      <label>Big Banner Ad Code</label>
+      <textarea id="bigAdCode" oninput="render()"></textarea>
+      <div class="hint">Used wherever you drop a "Big Banner" ad slot block.</div>
+      <label>Small Ad Code</label>
+      <textarea id="smallAdCode" oninput="render()"></textarea>
+      <div class="hint">Used wherever you drop a "Small Ad" ad slot block.</div>
+      <label>Extra Header Scripts (optional — async loader scripts, goes in &lt;head&gt;)</label>
+      <textarea id="headScripts" oninput="render()"></textarea>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🔗 Bottom Buttons</div>
+      <div id="buttonList"></div>
+      <div class="empty-note" id="emptyButtons">No buttons yet.</div>
+      <button class="btn btn-outline btn-block" onclick="addBottomButton()"><span style="font-weight:900">+</span> Add Button</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">⚡ Follow / Social Links Footer</div>
+      <div class="hint" style="margin-bottom:8px">Matches "Follow For More" block from your existing pages.</div>
+      <div id="socialList"></div>
+      <div class="empty-note" id="emptySocials">No social links yet.</div>
+      <button class="btn btn-outline btn-block" onclick="addSocial()"><span style="font-weight:900">+</span> Add Social Link</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">© Footer Credit</div>
+      <input type="text" id="footerCredit" value="All rights reserved. Jizzy B (Dogyabhi) · Arc Comic" oninput="render()"/>
+    </div>
+
+  </div>
+
+  <div class="preview-panel" style="background:#e8e8ee;padding:16px">
+    <div class="preview-frame-wrap" style="max-width:680px;margin:0 auto">
+      <div class="preview-toolbar" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <h2 style="font-size:0.85em;color:#555">Live Preview</h2>
+        <span style="font-size:0.7em;color:#999">Renders exactly what saves</span>
+      </div>
+      <iframe id="previewFrame" style="width:100%;height:82vh;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>
+    </div>
+  </div>
+</div>
+
+<div class="action-bar" style="position:sticky;bottom:0;background:#fff;border-top:2px solid var(--border);padding:12px 16px;display:flex;gap:10px;flex-wrap:wrap;z-index:150">
+  <button class="btn btn-outline" onclick="loadSample()">🎬 Load Sample</button>
+  <button class="btn btn-outline" onclick="document.getElementById('postFileInput').click()">📤 Load HTML</button>
+  <button class="btn btn-outline" onclick="document.getElementById('projectFileInput').click()">📂 Load Project</button>
+  <button class="btn btn-outline" onclick="saveProject()">💾 Save Project</button>
+  <button class="btn btn-outline" onclick="clearAll()">🗑 Clear</button>
+  <button class="btn btn-purple" onclick="generateAndDownload()">⬇ Generate HTML</button>
+  <input type="file" id="projectFileInput" accept=".json" style="display:none" onchange="openProject(event)"/>
+  <input type="file" id="postFileInput" accept=".html,.htm" style="display:none" onchange="openExistingPost(event)"/>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== STATE ===================== */
+let blocks = [];
+let bottomButtons = [];
+let socials = [];
+let blockIdSeq = 1;
+let renderTimer = null;
+
+function uid(){ return 'b' + (blockIdSeq++); }
+
+const DEFAULT_BIG_AD = `<div data-mndbanid="cd65bd0a-9d1d-4729-b928-1e735cf623f8"></div>`;
+const DEFAULT_SMALL_AD = `<div data-mndbanid="cd65bd0a-9d1d-4729-b928-1e735cf623f8"></div>`;
+const DEFAULT_HEAD_SCRIPTS = `<script async src="https://ss.mrmnd.com/ctatic/df7b8ffd-62c6-4bc8-bbcd-76c19fe0019b.js"><\/script>\n<script async src="https://ss.mrmnd.com/banner.js"><\/script>`;
+
+function seedDefaults(){
+  socials = [
+    {id:uid(), platform:'youtube', label:'YouTube Jizzy B', url:'https://youtube.com/@jizzy2b?si=WyqKgvT2zeumvi1j'},
+    {id:uid(), platform:'telegram', label:'Telegram Emma (Jizzy B)', url:'https://t.me/+pQ5_VyxXeEpjNzQ9'},
+    {id:uid(), platform:'telegram', label:'Telegram Arc Comic (Art & Story)', url:'https://t.me/+82vHaUuf6PM3Y2Fl'}
+  ];
+  bottomButtons = [
+    {id:uid(), label:'📖 Join Arc Comic on Telegram', url:'https://t.me/+82vHaUuf6PM3Y2Fl'}
+  ];
+}
+seedDefaults();
+
+/* ===================== CRITICAL FIX: sync DOM to model before any rebuild ===================== */
+function syncAllBlocksFromDOM(){
+  blocks.forEach(b=>{
+    if(b.type==='text'){
+      const el = document.getElementById('ta-'+b.id);
+      if(el) b.content = el.value;
+    } else if(b.type==='image'){
+      const g = document.getElementById('ghfile-'+b.id);
+      const u = document.getElementById('url-'+b.id);
+      if(g) b.ghFile = g.value;
+      if(u) b.url = u.value;
+    } else if(b.type==='button'){
+      const l = document.getElementById('label-'+b.id);
+      const u = document.getElementById('url-'+b.id);
+      if(l) b.label = l.value;
+      if(u) b.url = u.value;
+    }
+  });
+}
+
+/* ===================== BLOCK CRUD ===================== */
+function addBlock(type){
+  syncAllBlocksFromDOM();
+  const base = {id: uid(), type};
+  if(type==='text') base.content = '';
+  if(type==='image') base.url = '';
+  if(type==='ad') base.size = 'big';
+  if(type==='button') { base.label = 'Click Here'; base.url = ''; }
+  blocks.push(base);
+  renderBuilderBlocks();
+  render();
+}
+function removeBlock(id){
+  syncAllBlocksFromDOM();
+  blocks = blocks.filter(b=>b.id!==id);
+  renderBuilderBlocks();
+  render();
+}
+function moveBlock(id, dir){
+  syncAllBlocksFromDOM();
+  const i = blocks.findIndex(b=>b.id===id);
+  const j = i+dir;
+  if(j<0||j>=blocks.length) return;
+  [blocks[i],blocks[j]] = [blocks[j],blocks[i]];
+  renderBuilderBlocks();
+  render();
+}
+
+function tagMeta(type){
+  if(type==='text') return {label:'Text', cls:'tag-text'};
+  if(type==='image') return {label:'Image', cls:'tag-image'};
+  if(type==='ad') return {label:'Ad Slot', cls:'tag-ad'};
+  if(type==='button') return {label:'Button', cls:'tag-btn'};
+}
+
+function renderBuilderBlocks(){
+  syncAllBlocksFromDOM();
+  const list = document.getElementById('blockList');
+  const empty = document.getElementById('emptyBlocks');
+  list.innerHTML = '';
+  empty.style.display = blocks.length ? 'none' : 'block';
+
+  blocks.forEach((b, idx)=>{
+    const meta = tagMeta(b.type);
+    const div = document.createElement('div');
+    div.className = 'block-item';
+    div.dataset.id = b.id;
+
+    let fields = '';
+    if(b.type==='text'){
+      fields = `
+      <div class="fmt-toolbar">
+        <button type="button" class="fmt-btn b" title="Bold" onclick="wrapSelection('${b.id}','**','**')">B</button>
+        <button type="button" class="fmt-btn i" title="Italic" onclick="wrapSelection('${b.id}','_','_')">I</button>
+        <button type="button" class="fmt-btn u" title="Underline" onclick="wrapSelection('${b.id}','++','++')">U</button>
+      </div>
+      <textarea id="ta-${b.id}" oninput="updateBlock('${b.id}','content',this.value);render();" placeholder="Write your paragraph here... use [[Click here|https://link.com]] for inline links">${escapeHtml(b.content)}</textarea>
+      <div style="font-size:0.65em;color:#aaa;margin-top:3px">Select text first, then tap B/I/U. Or type manually: **bold**, _italic_, ++underline++</div>`;
+    } else if(b.type==='image'){
+      fields = `<label style="margin-top:0">GitHub filename (optional)</label>
+      <input type="text" id="ghfile-${b.id}" value="${escapeAttr(b.ghFile||'')}" placeholder="post1.jpg" oninput="updateGhFile('${b.id}',this.value)"/>
+      <label>Image URL</label>
+      <input type="text" id="url-${b.id}" value="${escapeAttr(b.url)}" placeholder="https://image-url.jpg (catbox.moe etc)" oninput="updateBlock('${b.id}','url',this.value);render();"/>`;
+    } else if(b.type==='ad'){
+      fields = `<select onchange="updateBlock('${b.id}','size',this.value);render();">
+        <option value="big" ${b.size==='big'?'selected':''}>Big Banner Ad</option>
+        <option value="small" ${b.size==='small'?'selected':''}>Small Ad</option>
+      </select>`;
+    } else if(b.type==='button'){
+      fields = `<input type="text" id="label-${b.id}" value="${escapeAttr(b.label)}" placeholder="Button label" style="margin-bottom:6px" oninput="updateBlock('${b.id}','label',this.value);render();"/>
+      <input type="text" id="url-${b.id}" value="${escapeAttr(b.url)}" placeholder="https://destination-link.com" oninput="updateBlock('${b.id}','url',this.value);render();"/>`;
+    }
+
+    div.innerHTML = `
+      <div class="block-head">
+        <span class="block-tag ${meta.cls}">${meta.label}</span>
+        <div class="order-controls">
+          <button type="button" class="btn-ghost" onclick="moveBlock('${b.id}',-1)" ${idx===0?'disabled':''}>↑ Up</button>
+          <button type="button" class="btn-ghost" onclick="moveBlock('${b.id}',1)" ${idx===blocks.length-1?'disabled':''}>↓ Down</button>
+          <button type="button" class="btn-danger" onclick="removeBlock('${b.id}')">Remove</button>
+        </div>
+      </div>
+      ${fields}
+    `;
+    list.appendChild(div);
+  });
+}
+
+function updateBlock(id, field, value){
+  const b = blocks.find(x=>x.id===id);
+  if(b){ b[field] = value; }
+}
+
+function updateGhFile(id, value){
+  const b = blocks.find(x=>x.id===id);
+  if(!b) return;
+  b.ghFile = value;
+  if(value.trim()){
+    const built = buildGhUrl(value);
+    if(built){
+      b.url = built;
+      const urlInput = document.getElementById('url-'+id);
+      if(urlInput) urlInput.value = built;
+    }
+  }
+  render();
+}
+
+function wrapSelection(blockId, before, after){
+  const ta = document.getElementById('ta-'+blockId);
+  if(!ta) return;
+  const start = ta.selectionStart, end = ta.selectionEnd;
+  const val = ta.value;
+  if(start===end){
+    const newVal = val.slice(0,start) + before + 'text' + after + val.slice(end);
+    ta.value = newVal;
+    ta.focus();
+    ta.selectionStart = start + before.length;
+    ta.selectionEnd = start + before.length + 4;
+  } else {
+    const selected = val.slice(start,end);
+    const newVal = val.slice(0,start) + before + selected + after + val.slice(end);
+    ta.value = newVal;
+    ta.focus();
+    ta.selectionStart = start;
+    ta.selectionEnd = end + before.length + after.length;
+  }
+  updateBlock(blockId, 'content', ta.value);
+  render();
+}
+
+function buildGhUrl(filename){
+  const repo = document.getElementById('ghRepo').value.trim();
+  const branch = document.getElementById('ghBranch').value.trim() || 'main';
+  const folder = document.getElementById('ghFolder').value.trim();
+  if(!repo || !filename.trim()) return '';
+  const folderPart = folder ? folder.replace(/^\/+|\/+$/g,'') + '/' : '';
+  return `https://raw.githubusercontent.com/${repo.replace(/^\/+|\/+$/g,'')}/${branch}/${folderPart}${filename.trim()}`;
+}
+function syncTopImage(){
+  const filename = document.getElementById('topImageFile').value;
+  const url = buildGhUrl(filename);
+  if(url) document.getElementById('topImage').value = url;
+  render();
+}
+function saveGhSettings(){
+  try{
+    localStorage.setItem('arcGhSettings', JSON.stringify({
+      repo: document.getElementById('ghRepo').value,
+      branch: document.getElementById('ghBranch').value,
+      folder: document.getElementById('ghFolder').value
+    }));
+  }catch(e){}
+}
+function loadGhSettings(){
+  try{
+    const s = JSON.parse(localStorage.getItem('arcGhSettings'));
+    if(s){
+      document.getElementById('ghRepo').value = s.repo||'JizzyBx/linkgateway';
+      document.getElementById('ghBranch').value = s.branch||'main';
+      document.getElementById('ghFolder').value = s.folder||'post-image';
+    }
+  }catch(e){}
+}
+
+/* ===================== BOTTOM BUTTONS ===================== */
+function addBottomButton(){
+  bottomButtons.push({id:uid(), label:'Click Here', url:''});
+  renderButtons();
+  render();
+}
+function removeBottomButton(id){
+  bottomButtons = bottomButtons.filter(b=>b.id!==id);
+  renderButtons();
+  render();
+}
+function updateButton(id, field, value){
+  const b = bottomButtons.find(x=>x.id===id);
+  if(b){ b[field]=value; render(); }
+}
+function renderButtons(){
+  const list = document.getElementById('buttonList');
+  const empty = document.getElementById('emptyButtons');
+  list.innerHTML='';
+  empty.style.display = bottomButtons.length? 'none':'block';
+  bottomButtons.forEach(b=>{
+    const div = document.createElement('div');
+    div.className='block-item';
+    div.innerHTML = `
+      <div class="block-head">
+        <span class="block-tag tag-btn">Button</span>
+        <button type="button" class="btn-danger" onclick="removeBottomButton('${b.id}')">Remove</button>
+      </div>
+      <input type="text" value="${escapeAttr(b.label)}" placeholder="Button label e.g. 📖 Join Arc Comic on Telegram" style="margin-bottom:6px" oninput="updateButton('${b.id}','label',this.value)"/>
+      <input type="text" value="${escapeAttr(b.url)}" placeholder="https://t.me/..." oninput="updateButton('${b.id}','url',this.value)"/>
+    `;
+    list.appendChild(div);
+  });
+}
+
+/* ===================== SOCIALS ===================== */
+function addSocial(){
+  socials.push({id:uid(), platform:'telegram', label:'', url:''});
+  renderSocials();
+  render();
+}
+function removeSocial(id){
+  socials = socials.filter(s=>s.id!==id);
+  renderSocials();
+  render();
+}
+function updateSocial(id, field, value){
+  const s = socials.find(x=>x.id===id);
+  if(s){ s[field]=value; render(); }
+}
+function renderSocials(){
+  const list = document.getElementById('socialList');
+  const empty = document.getElementById('emptySocials');
+  list.innerHTML='';
+  empty.style.display = socials.length? 'none':'block';
+  socials.forEach(s=>{
+    const div = document.createElement('div');
+    div.className='block-item';
+    div.innerHTML = `
+      <div class="block-head">
+        <span class="block-tag tag-btn">Social</span>
+        <button type="button" class="btn-danger" onclick="removeSocial('${s.id}')">Remove</button>
+      </div>
+      <div class="social-row">
+        <select onchange="updateSocial('${s.id}','platform',this.value)">
+          <option value="telegram" ${s.platform==='telegram'?'selected':''}>Telegram</option>
+          <option value="youtube" ${s.platform==='youtube'?'selected':''}>YouTube</option>
+        </select>
+        <input type="text" value="${escapeAttr(s.label)}" placeholder="Display label" oninput="updateSocial('${s.id}','label',this.value)"/>
+      </div>
+      <div class="link-row">
+        <input type="text" value="${escapeAttr(s.url)}" placeholder="https://..." oninput="updateSocial('${s.id}','url',this.value)"/>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+/* ===================== HELPERS ===================== */
+function escapeHtml(str){
+  return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escapeAttr(str){
+  return (str||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+}
+function parseInlineFormatting(raw){
+  let escaped = escapeHtml(raw);
+  escaped = escaped.replace(/\[\[([^\|\]]+)\|([^\]]+)\]\]/g, function(m, label, url){
+    return `<a href="${url.trim()}" target="_blank" rel="noopener" style="color:#6f42c1;font-weight:bold;text-decoration:underline">${label.trim()}</a>`;
+  });
+  escaped = escaped.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
+  escaped = escaped.replace(/\+\+([^\+]+)\+\+/g, '<u>$1</u>');
+  escaped = escaped.replace(/_([^_]+)_/g, '<em>$1</em>');
+  return escaped;
+}
+function socialIconSvg(platform){
+  if(platform==='youtube'){
+    return `<svg class="social-icon" viewBox="0 0 24 24" fill="#FF0000"><path d="M23.5 6.2s-.3-1.8-1.1-2.6c-1-1.1-2.2-1.1-2.7-1.2C16.8 2.2 12 2.2 12 2.2s-4.8 0-7.7.2c-.5.1-1.7.1-2.7 1.2C.8 4.4.5 6.2.5 6.2S.2 8.3.2 10.4v1.9c0 2.1.3 4.2.3 4.2s.3 1.8 1.1 2.6c1 1.1 2.4 1 3 1.1C6.7 20.4 12 20.4 12 20.4s4.8 0 7.7-.2c.5-.1 1.7-.1 2.7-1.2.8-.8 1.1-2.6 1.1-2.6s.3-2.1.3-4.2v-1.9c0-2.1-.3-4.2-.3-4.2zM9.7 14.6V8.4l7.3 3.1-7.3 3.1z"/></svg>`;
+  }
+  return `<svg class="social-icon" viewBox="0 0 24 24" fill="#2CA5E0"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.9 8.2l-2 9.4c-.1.6-.6.9-1 .6l-2.8-2.1-1.3 1.3c-.2.2-.4.2-.6.1l.3-3.1 5.2-4.7c.2-.2 0-.3-.3-.1L6.6 14.3l-2.7-.8c-.6-.2-.6-.6.1-.9l10.8-4.2c.6-.2 1.1.1.9.8h.2z"/></svg>`;
+}
+
+function utf8ToBase64(str){
+  try {
+    return btoa(unescape(encodeURIComponent(str)));
+  } catch(e){
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    let out = '';
+    const bytes = new Uint8Array(new TextEncoder().encode(str));
+    for(let i=0;i<bytes.length;i+=3){
+      const b1 = bytes[i], b2 = bytes[i+1]||0, b3 = bytes[i+2]||0;
+      const e1 = b1 >> 2, e2 = ((b1 & 3) << 4) | (b2 >> 4), e3 = ((b2 & 15) << 2) | (b3 >> 6), e4 = b3 & 63;
+      out += chars[e1] + chars[e2] + (i+1 < bytes.length ? chars[e3] : '=') + (i+2 < bytes.length ? chars[e4] : '=');
+    }
+    return out;
+  }
+}
+
+/* ===================== BUILD FULL HTML DOCUMENT ===================== */
+function buildDocument(){
+  const pageTitle = document.getElementById('pageTitle').value || 'Arc Comic';
+  const metaDesc = document.getElementById('metaDesc').value || '';
+  const articleTag = document.getElementById('articleTag').value || '';
+  const articleTitle = document.getElementById('articleTitle').value || '';
+  const topImage = document.getElementById('topImage').value.trim();
+  const bigAdCode = document.getElementById('bigAdCode').value.trim();
+  const smallAdCode = document.getElementById('smallAdCode').value.trim();
+  const headScripts = document.getElementById('headScripts').value.trim();
+  const footerCredit = document.getElementById('footerCredit').value || '';
+
+  const editData = JSON.stringify(collectProjectState());
+  const editDataComment = `<!--ARC_POST_DATA\n${editData.replace(/-->/g,'--\\u003e')}\nARC_POST_DATA-->`;
+
+  let blocksHtml = '';
+  blocks.forEach(b=>{
+    if(b.type==='text' && b.content.trim()){
+      blocksHtml += `    <p>${parseInlineFormatting(b.content)}</p>\n`;
+    } else if(b.type==='image' && b.url.trim()){
+      blocksHtml += `    <img class="article-img gallery-img" src="${escapeAttr(b.url.trim())}" alt="" style="margin:12px 0;border-radius:8px;cursor:zoom-in;" onerror="this.style.display='none'" onclick="openLightbox(this.src)"/>\n`;
+    } else if(b.type==='ad'){
+      const code = b.size==='big' ? bigAdCode : smallAdCode;
+      if(code){
+        blocksHtml += `    <div class="ad-wrap"><div class="ad-label">advertisement</div>\n    ${code}\n    </div>\n`;
+      }
+    } else if(b.type==='button' && b.url.trim()){
+      blocksHtml += `    <a class="join-btn" href="${escapeAttr(b.url.trim())}" target="_blank" rel="noopener">${escapeHtml(b.label)}</a>\n`;
+    }
+  });
+
+  let buttonsHtml = '';
+  bottomButtons.forEach(b=>{
+    if(b.url.trim()){
+      buttonsHtml += `  <a class="join-btn" href="${escapeAttr(b.url.trim())}" target="_blank" rel="noopener">${escapeHtml(b.label)}</a>\n`;
+    }
+  });
+
+  let socialsHtml = '';
+  socials.forEach(s=>{
+    if(s.url.trim()){
+      socialsHtml += `    <li><a href="${escapeAttr(s.url.trim())}" target="_blank" rel="noopener">${socialIconSvg(s.platform)}${escapeHtml(s.label)}</a></li>\n`;
+    }
+  });
+
+  const topImageHtml = topImage ? `<img class="article-img gallery-img" src="${escapeAttr(topImage)}" alt="${escapeAttr(articleTitle)}" style="cursor:zoom-in" onerror="this.style.display='none'" onclick="openLightbox(this.src)"/>` : '';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+${editDataComment}
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="referrer" content="no-referrer-when-downgrade"/>
+<title>${escapeHtml(pageTitle)}</title>
+<meta name="description" content="${escapeAttr(metaDesc)}"/>
+${headScripts ? headScripts + '\n' : ''}
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#f0f2f5;color:#222;font-family:'Segoe UI',Arial,sans-serif;font-size:14px;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+.article-card{width:92%;max-width:640px;background:#fff;border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;margin:16px auto 10px;box-shadow:0 2px 12px rgba(0,0,0,0.06)}
+.article-img{width:100%;max-height:260px;object-fit:cover;display:block}
+.article-body{padding:18px 16px}
+.article-tag{display:inline-block;background:#e8d5ff;color:#5a32a3;font-size:0.65em;font-weight:bold;padding:3px 10px;border-radius:50px;letter-spacing:1px;margin-bottom:8px;text-transform:uppercase}
+.article-title{font-size:1.15em;font-weight:900;color:#111;margin-bottom:10px;line-height:1.4}
+.article-body p{font-size:0.88em;color:#444;line-height:1.75;margin-bottom:10px}
+.article-body strong{color:#111}
+.join-btn{display:block;width:100%;max-width:320px;margin:16px auto 0;padding:13px;background:#2CA5E0;color:#fff;border:none;border-radius:50px;font-weight:bold;font-size:15px;text-align:center;text-decoration:none;cursor:pointer;transition:background 0.3s,transform 0.1s;letter-spacing:0.5px}
+.join-btn:hover{background:#1a8ab5}
+.join-btn:active{transform:scale(0.97)}
+.social-bar{width:92%;max-width:640px;background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:12px 16px;margin:10px auto 6px;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
+.social-title{font-size:0.72em;color:#888;letter-spacing:2px;text-transform:uppercase;font-weight:bold;margin-bottom:8px}
+.social-list{list-style:none;padding:0}
+.social-list li{margin-bottom:6px}
+.social-list a{display:inline-flex;align-items:center;gap:6px;font-size:0.82em;font-weight:bold;color:#222;text-decoration:none;transition:color 0.2s}
+.social-list a:hover{color:skyblue}
+.social-icon{width:16px;height:16px;display:inline-block;flex-shrink:0}
+.ad-wrap{width:92%;max-width:640px;margin:14px auto;text-align:center}
+.ad-label{font-size:0.60em;color:#ccc;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}
+.site-footer{width:100%;text-align:center;font-size:11px;color:#bbb;padding:14px 0 20px}
+.site-footer span{color:#6f42c1;font-weight:bold}
+.gallery-img{transition:opacity .15s}
+.gallery-img:hover{opacity:0.92}
+#lightboxOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;align-items:center;justify-content:center;padding:24px;cursor:zoom-out}
+#lightboxOverlay.open{display:flex}
+#lightboxOverlay img{max-width:100%;max-height:100%;border-radius:6px;box-shadow:0 10px 40px rgba(0,0,0,0.5)}
+#lightboxClose{position:absolute;top:16px;right:20px;color:#fff;font-size:32px;font-weight:300;cursor:pointer;line-height:1;background:rgba(255,255,255,0.1);width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+</style>
+</head>
+<body>
+
+<article class="article-card">
+  ${topImageHtml}
+  <div class="article-body">
+    ${articleTag ? `<div class="article-tag">${escapeHtml(articleTag)}</div>` : ''}
+    <h1 class="article-title">${escapeHtml(articleTitle)}</h1>
+${blocksHtml}${buttonsHtml}  </div>
+</article>
+
+${socials.length ? `<div class="social-bar">
+  <div class="social-title">⚡ Follow For More</div>
+  <ul class="social-list">
+${socialsHtml}  </ul>
+</div>` : ''}
+
+<footer class="site-footer">${escapeHtml(footerCredit)}</footer>
+
+<div id="lightboxOverlay" onclick="closeLightbox()">
+  <span id="lightboxClose" onclick="closeLightbox()">&times;</span>
+  <img id="lightboxImg" src="" alt="" onclick="event.stopPropagation()"/>
+</div>
+<script>
+function openLightbox(src){
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightboxOverlay').classList.add('open');
+}
+function closeLightbox(){
+  document.getElementById('lightboxOverlay').classList.remove('open');
+}
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeLightbox(); });
+<\/script>
+
+</body>
+</html>`;
+}
+
+/* ===================== RENDER PREVIEW ===================== */
+function render(){
+  clearTimeout(renderTimer);
+  renderTimer = setTimeout(()=>{
+    const html = buildDocument();
+    const frame = document.getElementById('previewFrame');
+    frame.srcdoc = html;
+  }, 150);
+}
+
+/* ===================== SAVE / DOWNLOAD ===================== */
+function generateAndDownload(){
+  const html = buildDocument();
+  let fname = (document.getElementById('fileName').value||'TelegramComic.html').trim();
+  if(!/\.html?$/i.test(fname)) fname += '.html';
+
+  if(window.Android && window.Android.saveFile){
+    const b64 = utf8ToBase64(html);
+    Android.saveFile(fname, "text/html", b64);
+  } else {
+    const blob = new Blob([html], {type:'text/html'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fname;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('✅ Downloaded ' + fname);
+  }
+}
+
+function saveProject(){
+  const state = collectProjectState();
+  const json = JSON.stringify(state, null, 2);
+  const slug = (state.articleTitle||'post').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').slice(0,50) || 'post';
+  const fname = slug + '.arcproject.json';
+
+  if(window.Android && window.Android.saveFile){
+    Android.saveFile(fname, "application/json", utf8ToBase64(json));
+  } else {
+    const blob = new Blob([json], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fname;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('💾 Project saved');
+  }
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+/* ===================== STATE COLLECTION / APPLY ===================== */
+function collectProjectState(){
+  return {
+    fileName: document.getElementById('fileName').value,
+    pageTitle: document.getElementById('pageTitle').value,
+    metaDesc: document.getElementById('metaDesc').value,
+    articleTag: document.getElementById('articleTag').value,
+    articleTitle: document.getElementById('articleTitle').value,
+    topImage: document.getElementById('topImage').value,
+    topImageFile: document.getElementById('topImageFile').value,
+    bigAdCode: document.getElementById('bigAdCode').value,
+    smallAdCode: document.getElementById('smallAdCode').value,
+    headScripts: document.getElementById('headScripts').value,
+    footerCredit: document.getElementById('footerCredit').value,
+    ghRepo: document.getElementById('ghRepo').value,
+    ghBranch: document.getElementById('ghBranch').value,
+    ghFolder: document.getElementById('ghFolder').value,
+    blocks, bottomButtons, socials
+  };
+}
+
+function applyState(state, fallbackName){
+  document.getElementById('fileName').value = state.fileName || fallbackName || 'TelegramComic.html';
+  document.getElementById('pageTitle').value = state.pageTitle||'';
+  document.getElementById('metaDesc').value = state.metaDesc||'';
+  document.getElementById('articleTag').value = state.articleTag||'';
+  document.getElementById('articleTitle').value = state.articleTitle||'';
+  document.getElementById('topImage').value = state.topImage||'';
+  document.getElementById('topImageFile').value = state.topImageFile||'';
+  document.getElementById('bigAdCode').value = state.bigAdCode!==undefined ? state.bigAdCode : DEFAULT_BIG_AD;
+  document.getElementById('smallAdCode').value = state.smallAdCode!==undefined ? state.smallAdCode : DEFAULT_SMALL_AD;
+  document.getElementById('headScripts').value = state.headScripts!==undefined ? state.headScripts : DEFAULT_HEAD_SCRIPTS;
+  document.getElementById('footerCredit').value = state.footerCredit||'';
+  document.getElementById('ghRepo').value = state.ghRepo||'JizzyBx/linkgateway';
+  document.getElementById('ghBranch').value = state.ghBranch||'main';
+  document.getElementById('ghFolder').value = state.ghFolder||'post-image';
+  blocks = state.blocks||[];
+  bottomButtons = state.bottomButtons||[];
+  socials = state.socials||[];
+  renderBuilderBlocks();
+  renderButtons();
+  renderSocials();
+  render();
+}
+
+function openProject(evt){
+  const file = evt.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const state = JSON.parse(e.target.result);
+      applyState(state);
+      showToast('📂 Project loaded');
+    }catch(err){
+      alert('Could not read that project file.');
+    }
+  };
+  reader.readAsText(file);
+  evt.target.value = '';
+}
+
+function openExistingPost(evt){
+  const file = evt.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const html = e.target.result;
+    const match = html.match(/<!--ARC_POST_DATA\s*([\s\S]*?)\s*ARC_POST_DATA-->/);
+    if(!match){
+      alert('This HTML file does not have embedded edit-data. Rebuild it manually here.');
+      return;
+    }
+    try{
+      const jsonStr = match[1].replace(/--\\u003e/g,'-->');
+      const state = JSON.parse(jsonStr);
+      applyState(state, file.name);
+      showToast('📤 Post loaded — edit and re-save to update it');
+    }catch(err){
+      alert('Found edit-data in this file but could not read it.');
+    }
+  };
+  reader.readAsText(file);
+  evt.target.value = '';
+}
+
+/* ===================== SAMPLE / CLEAR ===================== */
+function loadSample(){
+  document.getElementById('fileName').value = 'TelegramComic.html';
+  document.getElementById('pageTitle').value = 'Arc Comic Review – New Doujinshi Drop';
+  document.getElementById('metaDesc').value = 'Fresh doujinshi update on Arc Comic Telegram — reviews, ratings, active community.';
+  document.getElementById('articleTag').value = '📖 CHANNEL REVIEW';
+  document.getElementById('articleTitle').value = 'Title Here';
+  document.getElementById('topImage').value = 'https://example.com/top-image.jpg';
+  blocks = [
+    {id:uid(), type:'text', content:'Text here — intro paragraph about the new release. You can add a [[Click here|https://t.me/example]] link, make text **bold**, _italic_, or ++underlined++.'},
+    {id:uid(), type:'image', url:'https://example.com/image1.jpg'},
+    {id:uid(), type:'ad', size:'big'},
+    {id:uid(), type:'text', content:'Text here — more details about the story, characters, tags.'},
+    {id:uid(), type:'image', url:'https://example.com/image2.jpg'},
+    {id:uid(), type:'ad', size:'small'},
+    {id:uid(), type:'button', label:'📖 Join Arc Comic on Telegram', url:'https://t.me/+82vHaUuf6PM3Y2Fl'}
+  ];
+  renderBuilderBlocks();
+  renderButtons();
+  renderSocials();
+  render();
+}
+
+function clearAll(){
+  if(!confirm('Clear everything and start fresh?')) return;
+  document.getElementById('fileName').value = 'TelegramComic.html';
+  document.getElementById('pageTitle').value = 'Arc Comic Review';
+  document.getElementById('metaDesc').value = '';
+  document.getElementById('articleTag').value = '';
+  document.getElementById('articleTitle').value = 'Title Here';
+  document.getElementById('topImage').value = '';
+  document.getElementById('topImageFile').value = '';
+  document.getElementById('bigAdCode').value = DEFAULT_BIG_AD;
+  document.getElementById('smallAdCode').value = DEFAULT_SMALL_AD;
+  document.getElementById('headScripts').value = DEFAULT_HEAD_SCRIPTS;
+  document.getElementById('footerCredit').value = 'All rights reserved. Jizzy B (Dogyabhi) · Arc Comic';
+  blocks = [];
+  seedDefaults();
+  renderBuilderBlocks();
+  renderButtons();
+  renderSocials();
+  render();
+}
+
+/* ===================== SIDEBAR (file list from Android storage) ===================== */
+function openSidebar(){
+  refreshFileList();
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebarOverlay').classList.add('open');
+}
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+}
+
+function refreshFileList(){
+  const list = document.getElementById('draftList');
+  list.innerHTML = '';
+  if(window.Android && window.Android.listFiles){
+    try{
+      const files = JSON.parse(Android.listFiles());
+      if(files.length===0){
+        list.innerHTML = '<div class="empty-note">No files yet in your folder.</div>';
+        return;
+      }
+      files.forEach(name=>{
+        const div = document.createElement('div');
+        div.className = 'draft-item';
+        const isJson = name.endsWith('.json');
+        div.innerHTML = `<div class="draft-item-title">${escapeHtml(name)}</div><div class="draft-item-meta">${isJson?'Project':'HTML Post'}</div>`;
+        div.onclick = ()=>loadFileFromAndroid(name);
+        list.appendChild(div);
+      });
+    }catch(e){
+      list.innerHTML = '<div class="empty-note">Could not read folder.</div>';
+    }
+  } else {
+    list.innerHTML = '<div class="empty-note">File list only works in the Android app.</div>';
+  }
+}
+
+function loadFileFromAndroid(filename){
+  if(!window.Android || !window.Android.loadFile) return;
+  const content = Android.loadFile(filename);
+  if(!content){
+    showToast('⚠ Could not load file');
+    return;
+  }
+  try{
+    if(filename.endsWith('.json')){
+      applyState(JSON.parse(content));
+      showToast('📂 Project loaded: ' + filename);
+    } else {
+      const match = content.match(/<!--ARC_POST_DATA\s*([\s\S]*?)\s*ARC_POST_DATA-->/);
+      if(match){
+        const jsonStr = match[1].replace(/--\\u003e/g,'-->');
+        applyState(JSON.parse(jsonStr), filename);
+        showToast('📤 Post loaded: ' + filename);
+      } else {
+        alert('No edit data found in this HTML file.');
+      }
+    }
+    closeSidebar();
+  }catch(e){
+    alert('Error loading file: ' + e.message);
+  }
+}
+
+function createNewPost(){
+  closeSidebar();
+  clearAll();
+}
+
+/* ===================== FOLDER PICKER UI ===================== */
+function selectFolder(){
+  if(window.Android) Android.showFolderPicker();
+  else alert('Folder picker only works in the Android app.');
+}
+function onFolderPicked(){
+  if(window.Android){
+    const path = Android.getSavePath();
+    document.getElementById('folderPath').textContent = '📁 ' + path;
+    document.getElementById('folderBanner').style.display = 'flex';
+    document.getElementById('savePathLabel').textContent = '📁 ' + path;
+  }
+}
+function promptFolder(){
+  document.getElementById('folderBanner').style.display = 'flex';
+  showToast('👆 Tap "Change" to pick a save folder');
+}
+
+/* ===================== AUTO-SAVE ===================== */
+setInterval(()=>{
+  if(window.Android && window.Android.autoSave){
+    Android.autoSave(JSON.stringify(collectProjectState()));
+  }
+}, 4000);
+
+/* ===================== INIT ===================== */
+function initApp(){
+  loadGhSettings();
+  document.getElementById('bigAdCode').value = DEFAULT_BIG_AD;
+  document.getElementById('smallAdCode').value = DEFAULT_SMALL_AD;
+  document.getElementById('headScripts').value = DEFAULT_HEAD_SCRIPTS;
+
+  if(window.Android){
+    const path = Android.getSavePath();
+    if(path && path !== 'Not selected'){
+      document.getElementById('folderPath').textContent = '📁 ' + path;
+      document.getElementById('folderBanner').style.display = 'flex';
+      document.getElementById('savePathLabel').textContent = '📁 ' + path;
+    } else {
+      document.getElementById('folderBanner').style.display = 'flex';
+    }
+    const auto = Android.loadAutoSave();
+    if(auto){
+      try{
+        applyState(JSON.parse(auto));
+        showToast('📂 Auto-saved post restored');
+        return;
+      }catch(e){}
+    }
+  }
+
+  renderBuilderBlocks();
+  renderButtons();
+  renderSocials();
+  render();
+}
+
+initApp();
+</script>
+</body>
+</html>

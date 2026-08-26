@@ -1,0 +1,6 @@
+<resources>
+    <style name="Theme.ArcComic" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:statusBarColor">#1a1a1a</item>
+        <item name="android:windowBackground">#1a1a1a</item>
+    </style>
+</resources>
