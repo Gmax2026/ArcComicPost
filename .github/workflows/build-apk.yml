@@ -20,9 +20,10 @@ jobs:
         uses: android-actions/setup-android@v2
 
       - name: Build Debug APK
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug
+        uses: gradle/gradle-build-action@v2
+        with:
+          gradle-version: '8.0'
+          arguments: assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
